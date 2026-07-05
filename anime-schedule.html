@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新番週表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0e10; --panel:#17171a; --panel2:#1e1e22; --line:#2a2a30;
+    --text:#e6e6ea; --sub:#9a9aa4; --gold:#b8860b; --gold2:#d4a72c;
+    --shadow:0 2px 10px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Noto Sans TC',system-ui,sans-serif;
+    background:var(--bg); color:var(--text);
+    -webkit-font-smoothing:antialiased; padding:0 0 40px;
+  }
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg,#0e0e10 60%,rgba(14,14,16,.85));
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:18px 20px; display:flex; align-items:center;
+    justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:10px}
+  .brand h1{font-size:19px; font-weight:700; letter-spacing:.5px}
+  .brand .dot{width:9px; height:9px; border-radius:50%; background:var(--gold);
+    box-shadow:0 0 10px var(--gold)}
+  .season-ctrl{display:flex; align-items:center; gap:8px}
+  .season-ctrl select{
+    background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:7px 12px; font-family:inherit; font-size:14px;
+    cursor:pointer; outline:none;
+  }
+  .season-ctrl select:focus{border-color:var(--gold)}
+  .season-label{font-size:13px; color:var(--gold2); font-weight:500}
+
+  .status{padding:60px 20px; text-align:center; color:var(--sub); font-size:15px}
+  .status .spin{
+    width:34px; height:34px; margin:0 auto 16px; border-radius:50%;
+    border:3px solid var(--line); border-top-color:var(--gold);
+    animation:sp 1s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .grid{
+    display:grid; grid-template-columns:repeat(7,minmax(0,1fr));
+    gap:1px; background:var(--line); padding:1px; margin:0;
+  }
+  .col{background:var(--bg); min-height:200px; display:flex; flex-direction:column}
+  .col-head{
+    position:sticky; top:71px; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    padding:11px 8px; text-align:center;
+  }
+  .col-head .day{font-size:15px; font-weight:700}
+  .col-head .cnt{font-size:11px; color:var(--sub); margin-top:2px}
+  .col-head.today .day{color:var(--gold2)}
+  .col-head.today{border-bottom:2px solid var(--gold)}
+  .col-body{padding:8px 6px; display:flex; flex-direction:column; gap:8px}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    overflow:hidden; position:relative; transition:transform .12s,border-color .12s;
+  }
+  .card:hover{transform:translateY(-2px); border-color:var(--gold)}
+  .card .cover{width:100%; aspect-ratio:3/4; object-fit:cover; display:block;
+    background:var(--panel2)}
+  .card .info{padding:7px 8px 9px}
+  .card .title{font-size:12.5px; font-weight:500; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden; min-height:34px}
+  .card .meta{display:flex; align-items:center; justify-content:space-between;
+    margin-top:6px; gap:6px}
+  .card .ep{font-size:11px; color:var(--gold2); font-weight:500; white-space:nowrap}
+  .card .time{font-size:11px; color:var(--sub)}
+
+  .plats{position:absolute; top:6px; right:6px; display:flex; flex-direction:column;
+    gap:4px; align-items:flex-end}
+  .plat{
+    font-size:9.5px; font-weight:700; color:#fff; padding:2px 6px;
+    border-radius:5px; line-height:1.4; white-space:nowrap; letter-spacing:.3px;
+    box-shadow:0 1px 4px rgba(0,0,0,.5); backdrop-filter:blur(2px);
+  }
+
+  footer{text-align:center; color:var(--sub); font-size:12px; padding:24px 20px 0}
+  footer a{color:var(--gold2); text-decoration:none}
+
+  @media(max-width:900px){
+    .grid{grid-template-columns:1fr; gap:0; background:var(--bg); padding:0}
+    .col{min-height:0; border-bottom:1px solid var(--line)}
+    .col-head{position:static; text-align:left; padding:12px 16px;
+      display:flex; align-items:baseline; gap:10px}
+    .col-body{padding:10px 12px 16px;
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><h1>新番週表</h1></div>
+  <div class="season-ctrl">
+    <span class="season-label" id="seasonLabel"></span>
+    <select id="seasonSelect"></select>
+  </div>
+</header>
+
+<div id="status" class="status"><div class="spin"></div>載入當季新番中…</div>
+<div id="grid" class="grid" style="display:none"></div>
+
+<footer>資料來源 <a href="https://anilist.co" target="_blank" rel="noopener">AniList</a>・時間為日本 JST</footer>
+
+<script>
+const DAYS = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+const DAYS_SHORT = ['一','二','三','四','五','六','日'];
+
+// 已知串流平台色票；其餘串流平台以預設金色顯示
+const PLATFORM_COLORS = {
+  'Netflix':'#e50914', 'Crunchyroll':'#f47521', 'Amazon Prime Video':'#00a8e1',
+  'Prime Video':'#00a8e1', 'Hulu':'#1ce783', 'Disney Plus':'#0c3fa8',
+  'Disney+':'#0c3fa8', 'ABEMA':'#00c8b3', 'dアニメストア':'#f18f00',
+  'Bilibili':'#00a1d6', 'bilibili':'#00a1d6', 'U-NEXT':'#111111',
+  'YouTube':'#ff0000', 'HIDIVE':'#00b3e6', 'Muse Asia':'#5b2d8e',
+  'Ani-One':'#ff5a00', 'Netflix Anime':'#e50914'
+};
+// 排除非串流類的 externalLinks
+const NON_STREAMING = new Set(['Twitter','Official Site','Official Website',
+  'Instagram','Facebook','TikTok','Tumblr','Hashtag','Line','Reddit','News','Podcast']);
+
+const now = new Date();
+const CUR_SEASON = getSeason(now.getMonth()+1);
+const CUR_YEAR = now.getFullYear();
+
+function getSeason(m){
+  if(m<=3) return 'WINTER'; if(m<=6) return 'SPRING';
+  if(m<=9) return 'SUMMER'; return 'FALL';
+}
+const SEASON_TC = {WINTER:'冬',SPRING:'春',SUMMER:'夏',FALL:'秋'};
+
+// 建立季度下拉(前後各兩季)
+function buildSeasonOptions(){
+  const order=['WINTER','SPRING','SUMMER','FALL'];
+  let idx = order.indexOf(CUR_SEASON), year=CUR_YEAR;
+  const list=[];
+  // 往前兩季
+  let ti=idx, ty=year;
+  for(let i=0;i<2;i++){ ti--; if(ti<0){ti=3;ty--;} }
+  // 從最早往後排 5 季
+  for(let i=0;i<5;i++){
+    list.push({season:order[ti],year:ty});
+    ti++; if(ti>3){ti=0;ty++;}
+  }
+  return list;
+}
+
+const sel = document.getElementById('seasonSelect');
+buildSeasonOptions().forEach(o=>{
+  const opt=document.createElement('option');
+  opt.value = `${o.season}|${o.year}`;
+  opt.textContent = `${o.year} ${SEASON_TC[o.season]}`;
+  if(o.season===CUR_SEASON && o.year===CUR_YEAR) opt.selected=true;
+  sel.appendChild(opt);
+});
+sel.addEventListener('change',()=>{
+  const [s,y]=sel.value.split('|');
+  load(s, parseInt(y));
+});
+
+const QUERY = `
+query($season:MediaSeason,$year:Int,$page:Int){
+  Page(page:$page,perPage:50){
+    pageInfo{ hasNextPage }
+    media(season:$season,seasonYear:$year,type:ANIME,format:TV,sort:POPULARITY_DESC){
+      id
+      title{ romaji native }
+      episodes
+      coverImage{ large medium }
+      nextAiringEpisode{ airingAt episode }
+      airingSchedule(perPage:25){ nodes{ airingAt episode } }
+      externalLinks{ site url color }
+    }
+  }
+}`;
+
+async function fetchSeason(season, year){
+  let page=1, all=[], more=true, guard=0;
+  while(more && guard<6){
+    const res = await fetch('https://graphql.anilist.co',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({query:QUERY,variables:{season,year,page}})
+    });
+    if(!res.ok) throw new Error('AniList 回應 '+res.status);
+    const json = await res.json();
+    if(json.errors) throw new Error(json.errors[0].message);
+    const p = json.data.Page;
+    all = all.concat(p.media);
+    more = p.pageInfo.hasNextPage;
+    page++; guard++;
+  }
+  return all;
+}
+
+// 以 JST(UTC+9)判斷播出星期。回傳 {weekday:0-6(週一起), hhmm}
+function jstAiring(unixSec){
+  // getTime() 為 UTC 基準毫秒,直接 +9 小時得 JST 掛鐘時間(以 UTC getter 讀出)
+  const j = new Date(unixSec*1000 + 9*3600*1000);
+  let dow = j.getUTCDay(); // 0=日
+  const weekday = (dow+6)%7; // 轉成 0=週一 … 6=週日
+  const hh = String(j.getUTCHours()).padStart(2,'0');
+  const mm = String(j.getUTCMinutes()).padStart(2,'0');
+  return {weekday, time:`${hh}:${mm}`};
+}
+
+// 挑一個代表播出時間：優先 nextAiringEpisode，否則最後一集排程
+function pickAiring(m){
+  if(m.nextAiringEpisode && m.nextAiringEpisode.airingAt){
+    return {at:m.nextAiringEpisode.airingAt, ep:m.nextAiringEpisode.episode};
+  }
+  const nodes = (m.airingSchedule && m.airingSchedule.nodes) || [];
+  if(nodes.length){
+    const last = nodes[nodes.length-1];
+    return {at:last.airingAt, ep:(last.episode||0)+1};
+  }
+  return null;
+}
+
+function streamingLinks(m){
+  const seen=new Set(); const out=[];
+  (m.externalLinks||[]).forEach(l=>{
+    if(!l.site || NON_STREAMING.has(l.site)) return;
+    if(seen.has(l.site)) return; seen.add(l.site);
+    out.push({site:l.site, color:PLATFORM_COLORS[l.site]||l.color||'#b8860b', url:l.url});
+  });
+  return out.slice(0,3); // 每卡最多 3 個標籤,避免爆版
+}
+
+function render(list){
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('status');
+  grid.innerHTML='';
+
+  const buckets = Array.from({length:7},()=>[]);
+  list.forEach(m=>{
+    const a = pickAiring(m);
+    if(!a) return; // 無排程資訊者略過
+    const {weekday,time} = jstAiring(a.at);
+    buckets[weekday].push({m, ep:a.ep, time, at:a.at});
+  });
+  buckets.forEach(b=>b.sort((x,y)=> (x.time).localeCompare(y.time)));
+
+  const todayJst = (()=>{ const j=new Date(Date.now()+9*3600*1000);
+    return (j.getUTCDay()+6)%7; })();
+
+  buckets.forEach((items,i)=>{
+    const col=document.createElement('div'); col.className='col';
+    const head=document.createElement('div');
+    head.className='col-head'+(i===todayJst?' today':'');
+    head.innerHTML=`<span class="day">${DAYS[i]}</span><span class="cnt">${items.length} 部</span>`;
+    const body=document.createElement('div'); body.className='col-body';
+
+    items.forEach(({m,ep,time})=>{
+      const plats = streamingLinks(m);
+      const platHtml = plats.map(p=>
+        `<span class="plat" style="background:${p.color}">${escapeHtml(p.site)}</span>`
+      ).join('');
+      const title = m.title.native || m.title.romaji || '';
+      const card=document.createElement('div'); card.className='card';
+      const epText = ep ? `第 ${ep} 集` : '';
+      const totalText = m.episodes ? ` / ${m.episodes}` : '';
+      card.innerHTML=`
+        <div class="plats">${platHtml}</div>
+        <img class="cover" loading="lazy" src="${m.coverImage.large||m.coverImage.medium}" alt="">
+        <div class="info">
+          <div class="title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+          <div class="meta">
+            <span class="ep">${epText}${totalText}</span>
+            <span class="time">${time}</span>
+          </div>
+        </div>`;
+      // 點卡片開第一個串流連結
+      if(plats[0]){ card.style.cursor='pointer';
+        card.onclick=()=>window.open(plats[0].url,'_blank','noopener'); }
+      body.appendChild(card);
+    });
+
+    if(!items.length){
+      const e=document.createElement('div');
+      e.style.cssText='color:var(--sub);font-size:12px;text-align:center;padding:20px 0';
+      e.textContent='—'; body.appendChild(e);
+    }
+    col.appendChild(head); col.appendChild(body); grid.appendChild(col);
+  });
+
+  status.style.display='none';
+  grid.style.display='grid';
+}
+
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>(
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function load(season, year){
+  const status=document.getElementById('status');
+  const grid=document.getElementById('grid');
+  grid.style.display='none';
+  status.style.display='block';
+  status.innerHTML='<div class="spin"></div>載入當季新番中…';
+  document.getElementById('seasonLabel').textContent=`${year} ${SEASON_TC[season]}季`;
+  try{
+    const data = await fetchSeason(season, year);
+    if(!data.length){ status.innerHTML='此季度暫無資料'; return; }
+    render(data);
+  }catch(err){
+    status.innerHTML='載入失敗：'+escapeHtml(err.message)+
+      '<br><span style="font-size:12px">請稍後重試(AniList 可能限流)</span>';
+  }
+}
+
+load(CUR_SEASON, CUR_YEAR);
+</script>
+</body>
+</html>
